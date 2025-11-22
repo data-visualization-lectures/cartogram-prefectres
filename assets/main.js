@@ -585,7 +585,26 @@ function renderStateLabels() {
   if (!states || !states.size()) {
     return;
   }
-  var pathGen = carto.path || d3.geoPath().projection(proj);
+  var pathGen = (carto && carto.path) ? carto.path : d3.geoPath().projection(proj);
+
+  // 現在描画済みのパスから実際の描画位置を取得しておく
+  var bboxByLabel = d3.map();
+  states.each(function (d) {
+    var label = getFeatureLabel(d);
+    if (!label) {
+      return;
+    }
+    try {
+      var box = this.getBBox();
+      bboxByLabel.set(label, {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2
+      });
+    } catch (e) {
+      // getBBoxが失敗した場合は無視
+    }
+  });
+
   var labels = stateLabelsGroup.selectAll("text")
     .data(states.data(), function (d) {
       return getFeatureLabel(d);
@@ -601,12 +620,30 @@ function renderStateLabels() {
       return (d && d.properties && d.properties.nam_ja) || getFeatureLabel(d);
     })
     .attr("x", function (d) {
-      var b = pathGen.bounds(d);
-      return (b[0][0] + b[1][0]) / 2;
+      var label = getFeatureLabel(d);
+      var fromBox = label ? bboxByLabel.get(label) : null;
+      if (fromBox && isFinite(fromBox.x)) {
+        return fromBox.x;
+      }
+      var c = pathGen.centroid(d) || [NaN, NaN];
+      if (!isFinite(c[0])) {
+        var b = pathGen.bounds(d);
+        c[0] = (b[0][0] + b[1][0]) / 2;
+      }
+      return c[0];
     })
     .attr("y", function (d) {
-      var b = pathGen.bounds(d);
-      return (b[0][1] + b[1][1]) / 2;
+      var label = getFeatureLabel(d);
+      var fromBox = label ? bboxByLabel.get(label) : null;
+      if (fromBox && isFinite(fromBox.y)) {
+        return fromBox.y;
+      }
+      var c = pathGen.centroid(d) || [NaN, NaN];
+      if (!isFinite(c[1])) {
+        var b = pathGen.bounds(d);
+        c[1] = (b[0][1] + b[1][1]) / 2;
+      }
+      return c[1];
     });
 
   stateLabels = labels;
@@ -691,6 +728,8 @@ function applySampleDatasetForCurrentMap(options) {
     } else {
       stat.text("").classed("empty", true);
     }
+
+    renderStateLabels();
   });
 }
 
