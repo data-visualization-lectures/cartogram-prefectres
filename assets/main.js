@@ -818,8 +818,8 @@ function update() {
   } else {
     var colorSteps = Math.max(1, currentLegendCells);
     var colorRange = buildColorSamples(colorInterpolator, colorSteps);
-    color = d3.scaleQuantize()
-      .domain([lo, hi])
+    color = d3.scaleQuantile()
+      .domain(values)
       .range(colorRange);
     currentLegendBoundaries = null;
   }
