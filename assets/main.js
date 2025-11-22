@@ -174,6 +174,9 @@ var applyButtonDefaultText = applyButton.text(),
 var currentPreviewVisible = true,
   currentDatasetName = "サンプルデータ";
 
+var MAP_PADDING = 40;
+var MAP_SELECTED_LABEL_FONT_SIZE = 30;
+
 function resetFileInputValue() {
   var node = fileInput.node();
   if (!node) {
@@ -413,6 +416,12 @@ resetButton.on("click", resetToSampleData);
 
 
 var map = d3.select("#map"),
+  mapSelectionLabel = map.append("text")
+    .attr("id", "map-selected-label")
+    .attr("x", MAP_PADDING)
+    .attr("y", MAP_PADDING + MAP_SELECTED_LABEL_FONT_SIZE)
+    .attr("class", "map-selected-label")
+    .attr("text-anchor", "start"),
   layer = map.append("g")
     .attr("id", "layer"),
   states = layer.append("g")
@@ -442,6 +451,21 @@ var proj = d3.geoMercator()
       return field && field.key ? +d.properties[field.key] : 1;
     });
 
+function updateMapSelectionLabel(option) {
+  var text = "";
+  if (option) {
+    text = option.name || option.label || option.id || text;
+  }
+  if (!text && mapSelect && mapSelect.node()) {
+    var node = mapSelect.node();
+    var selected = node.options && node.options[node.selectedIndex];
+    text = selected ? selected.text : "";
+  }
+  if (mapSelectionLabel) {
+    mapSelectionLabel.text(text || "");
+  }
+}
+
 function loadMapOptions() {
   d3.json(PREF_INDEX_URL, function (error, data) {
     var prefOptions = (!error && data && data.length) ? transformPrefIndexToOptions(data) : [];
@@ -466,6 +490,7 @@ function changeMap(mapId, options) {
   }
   currentMap = nextMap;
   mapSelect.property("value", currentMap.id);
+  updateMapSelectionLabel(currentMap);
   setKeyColumn(currentMap.keyLabel || "地域名");
   stat.text("地図を読み込み中...").classed("empty", false);
   isMapLoading = true;
@@ -1565,7 +1590,9 @@ function serializeSvg(svgNode) {
   style.textContent = ""
     + "path.state{stroke:#666;stroke-width:.5;}"
     + "#legend .legend-title{font-size:12px;font-weight:600;fill:#0f172a;}"
-    + "#legend text{font-size:11px;fill:#5f6c80;}";
+    + "#legend text{font-size:11px;fill:#5f6c80;}"
+    + ".state-label{font-size:8px;fill:#111;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#fff;stroke-width:2px;}"
+    + ".map-selected-label{font-size:30px;font-weight:400;fill:#0f172a;pointer-events:none;}";
   clone.insertBefore(style, clone.firstChild);
 
   var background = document.createElementNS("http://www.w3.org/2000/svg", "rect");

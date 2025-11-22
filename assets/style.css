@@ -207,6 +207,13 @@ body {
   stroke-width: 2px;
 }
 
+.map-selected-label {
+  font-size: 30px;
+  font-weight: 400;
+  fill: #0f172a;
+  pointer-events: none;
+}
+
 .info-note {
   font-size: 0.9rem;
   color: var(--text-muted);
