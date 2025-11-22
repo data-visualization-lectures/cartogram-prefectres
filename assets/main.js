@@ -247,10 +247,8 @@ function setColorScheme(id, options) {
   var hasChanged = !currentColorScheme || currentColorScheme.id !== nextScheme.id;
   currentColorScheme = nextScheme;
   colorSchemeSelect.property("value", currentColorScheme.id);
-  if (hasChanged && (!options || !options.silent)) {
-    if (field && field.id !== "none") {
-      deferredUpdate();
-    }
+  if (field && field.id !== "none" && (!options || !options.silent)) {
+    update();
   }
 }
 
