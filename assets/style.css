@@ -147,6 +147,15 @@ body {
   min-width: 120px;
 }
 
+.label-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
 .map-select .unit-field {
   display: flex;
   align-items: center;
@@ -186,6 +195,16 @@ body {
 #legend text {
   font-size: 11px;
   fill: var(--text-muted);
+}
+
+.state-label {
+  font-size: 10px;
+  fill: #111;
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 2px;
 }
 
 .info-note {

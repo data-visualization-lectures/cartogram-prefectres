@@ -164,6 +164,7 @@ var fileInput = d3.select("#file-input"),
   legendCellsSelect = d3.select("#legend-cells"),
   legendUnitInput = d3.select("#legend-unit"),
   displayModeSelect = d3.select("#display-mode"),
+  showLabelsToggle = d3.select("#show-labels"),
   downloadDataButton = d3.select("#download-data-csv"),
   downloadSampleButton = d3.select("#download-sample");
 
@@ -407,6 +408,7 @@ downloadSvgButton.on("click", downloadCurrentSvg);
 downloadPngButton.on("click", downloadCurrentPng);
 downloadDataButton.on("click", downloadCurrentDatasetCsv);
 downloadSampleButton.on("click", downloadSampleDataset);
+showLabelsToggle.on("change", renderStateLabels);
 
 applyButton.on("click", applyPendingData);
 resetButton.on("click", resetToSampleData);
@@ -418,6 +420,9 @@ var map = d3.select("#map"),
   states = layer.append("g")
     .attr("id", "states")
     .selectAll("path"),
+  stateLabelsGroup = layer.append("g")
+    .attr("id", "state-labels"),
+  stateLabels = stateLabelsGroup.selectAll("text"),
   legendGroup = map.append("g")
     .attr("id", "legend")
     .attr("transform", "translate(520, 660)");
@@ -565,6 +570,48 @@ function redrawMapBase() {
     .text(function (d) {
       return getFeatureLabel(d);
     });
+
+  renderStateLabels();
+}
+
+function renderStateLabels() {
+  if (!stateLabelsGroup) {
+    return;
+  }
+  var shouldShow = showLabelsToggle && showLabelsToggle.property("checked");
+  if (!shouldShow) {
+    stateLabelsGroup.selectAll("text").remove();
+    stateLabels = stateLabelsGroup.selectAll("text");
+    return;
+  }
+  if (!states || !states.size()) {
+    return;
+  }
+  var pathGen = carto.path || d3.geoPath().projection(proj);
+  var labels = stateLabelsGroup.selectAll("text")
+    .data(states.data(), function (d) {
+      return getFeatureLabel(d);
+    });
+
+  labels.exit().remove();
+
+  labels = labels.enter()
+    .append("text")
+    .attr("class", "state-label")
+    .merge(labels)
+    .text(function (d) {
+      return (d && d.properties && d.properties.nam_ja) || getFeatureLabel(d);
+    })
+    .attr("x", function (d) {
+      var b = pathGen.bounds(d);
+      return (b[0][0] + b[1][0]) / 2;
+    })
+    .attr("y", function (d) {
+      var b = pathGen.bounds(d);
+      return (b[0][1] + b[1][1]) / 2;
+    });
+
+  stateLabels = labels;
 }
 
 function getCurrentFeatureLabels() {
@@ -705,6 +752,8 @@ function reset() {
     .text(function (d) {
       return getFeatureLabel(d);
     });
+
+  renderStateLabels();
 }
 
 function update() {
@@ -831,6 +880,7 @@ function update() {
   // 最新の selection を保持
   states = joined;
 
+  renderStateLabels();
   renderLegend(color, legendMin, legendMax, currentLegendBoundaries);
 
   var delta = (Date.now() - start) / 1000;
