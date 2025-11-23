@@ -1655,34 +1655,55 @@ function isIosDevice() {
 function triggerDownload(blob, filename) {
   var link = document.createElement("a");
 
-  // iOS Safariは blob URL のダウンロードをそのまま扱えないため、data URL に変換してからトリガーする。
-  if (isIosDevice() && typeof FileReader !== "undefined") {
-    var reader = new FileReader();
-    reader.onloadend = function () {
-      link.href = reader.result;
-      link.download = filename;
-      link.style.display = "none";
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
-    reader.readAsDataURL(blob);
+  // モバイル向け: Web Share API (Level 2) が使える場合は、共有シート経由で保存を促す。
+  var sharableFile = null;
+  if (typeof File !== "undefined") {
+    try {
+      sharableFile = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+    } catch (error) {
+      sharableFile = null;
+    }
+  }
+  if (sharableFile && navigator.canShare && navigator.canShare({ files: [sharableFile] })) {
+    navigator.share({ files: [sharableFile], title: filename })
+      .catch(function () {
+        fallbackDownload();
+      });
     return;
   }
 
-  var url = URL.createObjectURL(blob);
-  link.href = url;
-  link.download = filename;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  fallbackDownload();
 
-  // モバイルでのダウンロード開始前に URL が失効しないよう、少し遅らせて revoke する。
-  setTimeout(function () {
-    URL.revokeObjectURL(url);
-  }, 1500);
+  function fallbackDownload() {
+    // iOS Safari は blob URL を直接保存できないことが多いため、data URL に変換する。
+    if (isIosDevice() && typeof FileReader !== "undefined") {
+      var reader = new FileReader();
+      reader.onloadend = function () {
+        link.href = reader.result;
+        link.download = filename;
+        link.style.display = "none";
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
+
+    var url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // モバイルでのダウンロード開始前に URL が失効しないよう、少し遅らせて revoke する。
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1500);
+  }
 }
 
 function getDownloadFilename(ext) {
