@@ -1646,15 +1646,43 @@ function extractSvgDimensions(svgNode) {
   };
 }
 
+function isIosDevice() {
+  var ua = (window.navigator && window.navigator.userAgent) || "";
+  var platform = (window.navigator && window.navigator.platform) || "";
+  return /iPad|iPhone|iPod/i.test(ua) || (platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+}
+
 function triggerDownload(blob, filename) {
-  var url = URL.createObjectURL(blob);
   var link = document.createElement("a");
+
+  // iOS Safariは blob URL のダウンロードをそのまま扱えないため、data URL に変換してからトリガーする。
+  if (isIosDevice() && typeof FileReader !== "undefined") {
+    var reader = new FileReader();
+    reader.onloadend = function () {
+      link.href = reader.result;
+      link.download = filename;
+      link.style.display = "none";
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+
+  var url = URL.createObjectURL(blob);
   link.href = url;
   link.download = filename;
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+
+  // モバイルでのダウンロード開始前に URL が失効しないよう、少し遅らせて revoke する。
+  setTimeout(function () {
+    URL.revokeObjectURL(url);
+  }, 1500);
 }
 
 function getDownloadFilename(ext) {
