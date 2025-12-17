@@ -936,6 +936,8 @@ function update() {
     .attr("class", "state")
     .attr("fill", "#fafafa");
 
+  joined.exit().remove();
+
   // title 要素を確保
   entered.append("title");
 
