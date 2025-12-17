@@ -2073,6 +2073,13 @@ function restoreProjectState(state) {
 
     if (state.settings) {
       var s = state.settings;
+      if (s.fieldKey) {
+        var targetField = fields.find(function (f) { return f.key === s.fieldKey; });
+        if (targetField) {
+          field = targetField;
+        }
+      }
+
       if (s.legendCells) {
         currentLegendCells = +s.legendCells;
         legendCellsSelect.property("value", currentLegendCells);
@@ -2081,20 +2088,18 @@ function restoreProjectState(state) {
         legendUnit = s.legendUnit;
         legendUnitInput.property("value", legendUnit);
       }
-      if (s.displayMode) {
-        setDisplayMode(s.displayMode);
-      }
-      if (s.colorSchemeId) {
-        setColorScheme(s.colorSchemeId, { silent: true });
-      }
       if (s.showLabels !== undefined) {
         showLabelsToggle.property("checked", s.showLabels);
       }
-      if (s.fieldKey) {
-        var targetField = fields.find(function (f) { return f.key === s.fieldKey; });
-        if (targetField) {
-          field = targetField;
-        }
+      if (s.displayMode) {
+        setDisplayMode(s.displayMode);
+      }
+
+      // Ensure color options are populated before setting the scheme
+      initializeColorSchemeOptions();
+
+      if (s.colorSchemeId) {
+        setColorScheme(s.colorSchemeId, { silent: true });
       }
     }
 
