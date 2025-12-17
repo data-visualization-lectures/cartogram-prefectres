@@ -960,10 +960,11 @@ function update() {
     })
     .attr("d", carto.path);
 
-  // 最新の selection を保持
   states = joined;
 
   renderStateLabels();
+  // Ensure labels are re-rendered after transition
+  setTimeout(renderStateLabels, 800);
   renderLegend(color, legendMin, legendMax, currentLegendBoundaries);
 
   var delta = (Date.now() - start) / 1000;
