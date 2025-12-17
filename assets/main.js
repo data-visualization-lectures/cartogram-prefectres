@@ -160,6 +160,8 @@ var fileInput = d3.select("#file-input"),
   toggleCurrentPreviewButton = d3.select("#toggle-current-preview"),
   downloadSvgButton = d3.select("#download-svg-btn"),
   downloadPngButton = d3.select("#download-png-btn"),
+  downloadProjectButton = d3.select("#download-project-btn"),
+  loadProjectInput = d3.select("#load-project-input"),
   colorSchemeSelect = d3.select("#color-scheme"),
   legendCellsSelect = d3.select("#legend-cells"),
   legendUnitInput = d3.select("#legend-unit"),
@@ -407,6 +409,8 @@ toggleCurrentPreviewButton.on("click", function () {
 
 downloadSvgButton.on("click", downloadCurrentSvg);
 downloadPngButton.on("click", downloadCurrentPng);
+downloadProjectButton.on("click", saveProjectState);
+loadProjectInput.on("change", loadProjectState);
 downloadDataButton.on("click", downloadCurrentDatasetCsv);
 downloadSampleButton.on("click", downloadSampleDataset);
 showLabelsToggle.on("change", renderStateLabels);
@@ -515,7 +519,16 @@ function changeMap(mapId, options) {
     currentMap.objectName = result.objectName || currentMap.objectName;
 
     updateProjectionForCurrentTopology();
-    applySampleDatasetForCurrentMap(options);
+
+
+    if (options && options.skipData) {
+      redrawMapBase();
+      if (typeof options.onMapLoaded === "function") {
+        options.onMapLoaded();
+      }
+    } else {
+      applySampleDatasetForCurrentMap(options);
+    }
   });
 }
 
@@ -1985,3 +1998,117 @@ function selectDefaultField(fields, preferredKey, defaultToNone) {
 
 // Bootstrap
 loadMapOptions();
+
+function saveProjectState() {
+  if (!rawData || !rawData.length) {
+    alert("保存するデータがありません。");
+    return;
+  }
+
+  var state = {
+    version: 1,
+    timestamp: new Date().toISOString(),
+    mapId: currentMap ? currentMap.id : null,
+    data: rawData,
+    settings: {
+      fieldKey: field ? field.key : null,
+      colorSchemeId: currentColorScheme ? currentColorScheme.id : null,
+      legendCells: currentLegendCells,
+      legendUnit: legendUnit,
+      displayMode: currentMode,
+      showLabels: showLabelsToggle.property("checked")
+    }
+  };
+
+  try {
+    var jsonStr = JSON.stringify(state, null, 2);
+    var blob = new Blob([jsonStr], { type: "application/json" });
+    var filename = (currentMap ? currentMap.id : "project") + "_state.json";
+    triggerDownload(blob, filename);
+  } catch (e) {
+    console.error(e);
+    alert("保存中にエラーが発生しました。");
+  }
+}
+
+function loadProjectState() {
+  var file = this.files && this.files[0];
+  if (!file) {
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      var json = JSON.parse(e.target.result);
+      restoreProjectState(json);
+    } catch (err) {
+      console.error(err);
+      alert("ファイルの読み込みに失敗しました。形式が正しいか確認してください。");
+    } finally {
+      loadProjectInput.node().value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function restoreProjectState(state) {
+  if (!state || !state.data) {
+    alert("有効な状態データが含まれていません。");
+    return;
+  }
+
+  var mapId = state.mapId || (state.settings && state.settings.mapId);
+  var targetMapId = mapId;
+
+  var needsMapChange = !currentMap || (targetMapId && currentMap.id !== targetMapId);
+
+  var doRestore = function () {
+    loadDataset(cloneDataset(state.data), {
+      label: "復元データ",
+      isSample: false,
+      deferRender: true,
+      defaultToNone: true
+    });
+
+    if (state.settings) {
+      var s = state.settings;
+      if (s.legendCells) {
+        currentLegendCells = +s.legendCells;
+        legendCellsSelect.property("value", currentLegendCells);
+      }
+      if (s.legendUnit !== undefined) {
+        legendUnit = s.legendUnit;
+        legendUnitInput.property("value", legendUnit);
+      }
+      if (s.displayMode) {
+        setDisplayMode(s.displayMode);
+      }
+      if (s.colorSchemeId) {
+        setColorScheme(s.colorSchemeId, { silent: true });
+      }
+      if (s.showLabels !== undefined) {
+        showLabelsToggle.property("checked", s.showLabels);
+      }
+      if (s.fieldKey) {
+        var targetField = fields.find(function (f) { return f.key === s.fieldKey; });
+        if (targetField) {
+          field = targetField;
+        }
+      }
+    }
+
+    updateFieldSelection();
+    renderStateLabels();
+    setUploadStatus("プロジェクト状態を復元しました。", "success");
+  };
+
+  if (needsMapChange && targetMapId) {
+    changeMap(targetMapId, {
+      skipData: true,
+      onMapLoaded: doRestore
+    });
+  } else {
+    doRestore();
+  }
+}
