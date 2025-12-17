@@ -133,6 +133,18 @@ try {
 }
 
 try {
+  const vendorSrc = path.join(__dirname, 'vendor');
+  const vendorDest = path.join(distDir, 'vendor');
+  if (fs.existsSync(vendorDest)) {
+    fs.rmSync(vendorDest, { recursive: true, force: true });
+  }
+  fs.cpSync(vendorSrc, vendorDest, { recursive: true });
+  console.log(`✓ Copied: vendor → docs/vendor`);
+} catch (error) {
+  console.warn('⚠️  vendor copy skipped:', error.message);
+}
+
+try {
   const cnameSrc = path.join(__dirname, 'CNAME');
   const cnameDest = path.join(distDir, 'CNAME');
   if (fs.existsSync(cnameSrc)) {
