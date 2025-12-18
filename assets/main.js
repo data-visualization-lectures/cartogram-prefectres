@@ -2024,7 +2024,7 @@ function saveProjectToCloud() {
   var projectName = prompt("プロジェクト名を入力してください", suggestedName);
   if (projectName === null) return;
 
-  setButtonLoading(saveProjectButton || downloadProjectButton, true);
+  setButtonLoading(downloadProjectButton, true);
 
   var saveData = {
     version: "1.0",
@@ -2048,12 +2048,12 @@ function saveProjectToCloud() {
     CloudApi.saveProject(saveData, projectName, thumbnailBlob)
       .then(function () {
         alert("プロジェクト「" + projectName + "」を保存しました。");
-        setButtonLoading(saveProjectButton || downloadProjectButton, false);
+        setButtonLoading(downloadProjectButton, false);
       })
       .catch(function (err) {
         console.error(err);
         alert("保存に失敗しました: " + err.message);
-        setButtonLoading(saveProjectButton || downloadProjectButton, false);
+        setButtonLoading(downloadProjectButton, false);
       });
   });
 }
