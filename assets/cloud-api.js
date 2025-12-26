@@ -34,15 +34,14 @@ var CloudApi = (function () {
         console.log("Fetching projects...");
         try {
             var config = await getSupabaseConfig();
-            // Only select current app's projects
-            var endpoint = config.supabaseUrl + "/rest/v1/projects?select=id,name,created_at,updated_at,thumbnail_path&app_name=eq." + APP_NAME + "&order=updated_at.desc&apikey=" + config.supabaseKey;
+            // Use API endpoint as per specification
+            var endpoint = config.supabaseUrl + "/api/projects?app=" + APP_NAME;
 
             var response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
                     'Authorization': 'Bearer ' + config.accessToken,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'count=exact'
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -51,7 +50,8 @@ var CloudApi = (function () {
             }
 
             var data = await response.json();
-            return data;
+            // API returns { projects: [...] } format
+            return data.projects || [];
         } catch (error) {
             console.error(error);
             throw error;
@@ -68,6 +68,21 @@ var CloudApi = (function () {
         });
     }
 
+    function blobToBase64DataURL(blob) {
+        return new Promise(function (resolve, reject) {
+            if (!blob) {
+                resolve(null);
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function () {
+                resolve(reader.result); // data:image/png;base64,...
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
     async function saveProject(projectData, projectName, thumbnailBlob) {
         console.log("Saving project...");
         try {
@@ -75,70 +90,53 @@ var CloudApi = (function () {
             var id = projectData.id || generateUUID();
             var now = new Date().toISOString();
 
-            // Path pattern: user_id/project_id.json
-            var jsonFilePath = config.user.id + "/" + id + ".json";
-            var thumbFilePath = config.user.id + "/" + id + ".png";
-
-            // 1. Upload JSON to Storage
-            var jsonEndpoint = config.supabaseUrl + "/storage/v1/object/" + BUCKET_NAME + "/" + jsonFilePath + "?apikey=" + config.supabaseKey;
-
-            var jsonResponse = await fetch(jsonEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + config.accessToken,
-                    'Content-Type': 'application/json',
-                    'x-upsert': 'true'
-                },
-                body: JSON.stringify(projectData)
-            });
-
-            if (!jsonResponse.ok) {
-                throw new Error("Storage upload failed: " + jsonResponse.status);
-            }
-
-            // 2. Upload Thumbnail (Optional)
+            // Convert thumbnail blob to Base64 Data URI if provided
+            var thumbnailDataURL = null;
             if (thumbnailBlob) {
-                var thumbEndpoint = config.supabaseUrl + "/storage/v1/object/" + BUCKET_NAME + "/" + thumbFilePath + "?apikey=" + config.supabaseKey;
-                await fetch(thumbEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + config.accessToken,
-                        'Content-Type': 'image/png',
-                        'x-upsert': 'true'
-                    },
-                    body: thumbnailBlob
-                });
+                thumbnailDataURL = await blobToBase64DataURL(thumbnailBlob);
             }
 
-            // 3. Save Metadata to DB
-            var payload = {
-                id: id,
-                user_id: config.user.id,
+            // Prepare request body according to API specification
+            var requestBody = {
                 name: projectName || 'Untitled Project',
-                storage_path: jsonFilePath,
-                thumbnail_path: thumbnailBlob ? thumbFilePath : null,
                 app_name: APP_NAME,
-                created_at: projectData.created_at || now,
-                updated_at: now
+                data: projectData
             };
 
-            var dbEndpoint = config.supabaseUrl + "/rest/v1/projects?apikey=" + config.supabaseKey;
-            var dbResponse = await fetch(dbEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + config.accessToken,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates,return=representation'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!dbResponse.ok) {
-                throw new Error("DB save failed: " + dbResponse.status);
+            // Add thumbnail if available
+            if (thumbnailDataURL) {
+                requestBody.thumbnail = thumbnailDataURL;
             }
 
-            var result = await dbResponse.json();
-            return result && result.length > 0 ? result[0] : null;
+            // If projectData has an id, we should use PUT to update
+            var isUpdate = projectData.id ? true : false;
+            var endpoint = config.supabaseUrl + "/api/projects";
+            var method = 'POST';
+
+            if (isUpdate) {
+                endpoint = config.supabaseUrl + "/api/projects/" + projectData.id;
+                method = 'PUT';
+                // For update, only send changed fields
+                delete requestBody.app_name; // app_name doesn't change
+            }
+
+            var response = await fetch(endpoint, {
+                method: method,
+                headers: {
+                    'Authorization': 'Bearer ' + config.accessToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                var errorText = await response.text();
+                throw new Error("API save failed: " + response.status + " - " + errorText);
+            }
+
+            var result = await response.json();
+            // API returns { project: {...} } format
+            return result.project || null;
 
         } catch (error) {
             console.error(error);
@@ -151,21 +149,14 @@ var CloudApi = (function () {
         try {
             var config = await getSupabaseConfig();
 
-            // 1. Get storage path from DB (Optional, but good for validation)
-            // Actually, we can assume the path is user_id/project_id.json if we follow convention, 
-            // but let's just fetch the file directly if we have projectId? 
-            // Wait, we need the user_id of the owner. 
-            // If we are loading our OWN project, we know our user_id. 
-            // If we are loading shared, we might need to look up.
-            // Assuming user only loads their own projects for now.
-
-            var jsonFilePath = config.user.id + "/" + projectId + ".json";
-            var endpoint = config.supabaseUrl + "/storage/v1/object/" + BUCKET_NAME + "/" + jsonFilePath + "?apikey=" + config.supabaseKey;
+            // Use API endpoint to get project data
+            var endpoint = config.supabaseUrl + "/api/projects/" + projectId;
 
             var response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
-                    'Authorization': 'Bearer ' + config.accessToken
+                    'Authorization': 'Bearer ' + config.accessToken,
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -173,6 +164,7 @@ var CloudApi = (function () {
                 throw new Error("Project file not found or access denied.");
             }
 
+            // API returns the project data directly (not wrapped)
             var projectData = await response.json();
             return projectData;
 
@@ -182,10 +174,17 @@ var CloudApi = (function () {
         }
     }
 
+    function getThumbnailUrl(projectId) {
+        // Returns the URL for fetching thumbnail image
+        // Note: This requires authentication, so it should be used with fetch + Authorization header
+        return SUPABASE_URL + "/api/projects/" + projectId + "/thumbnail";
+    }
+
     return {
         getProjects: getProjects,
         saveProject: saveProject,
-        loadProject: loadProject
+        loadProject: loadProject,
+        getThumbnailUrl: getThumbnailUrl
     };
 
 })();
