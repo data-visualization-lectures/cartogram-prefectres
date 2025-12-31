@@ -8,7 +8,7 @@ var CloudApi = (function () {
     var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
 
     async function getSupabaseConfig() {
-        var globalAuthClient = window.supabase;
+        var globalAuthClient = window.datavizSupabase;
         if (!globalAuthClient || !globalAuthClient.auth) {
             throw new Error("認証クライアントが読み込まれていません。ページをリロードしてください。");
         }
