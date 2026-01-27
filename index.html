@@ -14,26 +14,19 @@
 
     gtag('config', 'G-9E4Y5K4DKT');
   </script>
+  <script>
+    window.DATAVIZ_HEADER_CONFIG = { mode: 'private' };
+  </script>
+  <script src="https://auth.dataviz.jp/lib/supabase.js"></script>
+  <script src="https://auth.dataviz.jp/lib/dataviz-auth-client.js"></script>
+  <script src="https://auth.dataviz.jp/lib/dataviz-tool-header.js" defer></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="docs/style.min.css">
 </head>
 
 <body>
+  <dataviz-tool-header></dataviz-tool-header>
   <main class="page container-fluid">
-    <section class="card hero-card"
-      style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 1rem;">
-      <div>
-        <h1>都道府県地図カルトグラム</h1>
-        <p style="margin-bottom: 0;">
-          都道府県別データを CSV でアップロードして、面積をデータ値に比例させたカルトグラムをブラウザだけで生成できます。
-        </p>
-      </div>
-      <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-        <button class="btn btn-secondary" id="load-project-btn" type="button">プロジェクト・ファイル読込</button>
-        <button class="btn btn-secondary" id="download-project-btn" type="button">プロジェクト・ファイル保存</button>
-      </div>
-    </section>
-
     <div class="layout">
       <section class="card data-panel">
         <div class="panel-header">

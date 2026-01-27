@@ -2274,3 +2274,28 @@ function showToast(message, type) {
     });
   }, 3000);
 }
+
+// --- Dataviz Tool Header Integration ---
+customElements.whenDefined('dataviz-tool-header').then(function() {
+  var toolHeader = document.querySelector('dataviz-tool-header');
+  if (toolHeader) {
+    var handleSave = function() { 
+      saveProjectToCloud();
+    };
+    var handleLoad = function() { 
+      openProjectListModal();
+    };
+
+    toolHeader.setConfig({
+      logo: {
+        type: 'text',
+        text: '都道府県地図カルトグラム',
+        textClass: 'font-bold text-lg text-white'
+      },
+      buttons: [
+        { label: 'プロジェクトの保存', action: handleSave },
+        { label: 'プロジェクトの読込', action: handleLoad }
+      ]
+    });
+  }
+});
