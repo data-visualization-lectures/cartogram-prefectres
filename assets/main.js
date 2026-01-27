@@ -1753,6 +1753,10 @@ function slugify(value) {
 }
 
 function setButtonLoading(buttonSelection, isLoading) {
+  // Check if button selection is empty
+  if (!buttonSelection || buttonSelection.empty()) {
+    return;
+  }
   buttonSelection
     .classed("is-loading", isLoading)
     .property("disabled", isLoading);
